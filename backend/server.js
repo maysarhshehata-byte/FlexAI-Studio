@@ -32,18 +32,16 @@ app.post('/chat', async (req, res) => {
         'X-Title': 'FlexAI Studio',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5.2',
+        model: 'openai/gpt-4o-mini',
         messages: [
-         {
-  {
-  role: 'system',
-  content: `
+          {
+            role: 'system',
+            content: `
 You are FlexAI, a sharp bilingual AI assistant.
 
 Core behavior:
 - Reply in the same language as the user.
-- If the user writes Arabic ِEgyptian, use natural Egyptian Arabic when appropriate.
-- If the user writes Arabic Saudi, use natural Saudi Arabic when appropriate.
+- If the user writes Arabic, use natural Egyptian Arabic when appropriate.
 - If the user writes English, use clear natural English.
 - If the user mixes Arabic and English, mirror the same mixed style naturally.
 - Be concise, smart, practical, and warm.
@@ -51,19 +49,17 @@ Core behavior:
 - Do not act like a character. Act like a premium assistant.
 - For technical/product-building topics, be direct and step-by-step.
 - For casual Arabic, sound like a smart Egyptian assistant, not formal Arabic.
-  `,
-},
-{
-  role: 'user',
-  content: message || 'Hello',
-},
+            `,
+          },
+          {
+            role: 'user',
+            content: message || 'Hello',
+          },
         ],
       }),
     });
 
     const data = await response.json();
-
-    console.log('OpenRouter response:', data);
 
     if (!response.ok) {
       return res.status(response.status).json(data);
