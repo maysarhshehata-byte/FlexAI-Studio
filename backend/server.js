@@ -17,7 +17,7 @@ app.post('/chat', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-3.5-turbo',
+        model: 'google/gemma-3-12b-it:free',
         messages: [
           {
             role: 'system',
