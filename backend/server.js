@@ -3,8 +3,13 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.json({ status: 'FlexAI backend is online' });
+});
 
 app.post('/chat', async (req, res) => {
   try {
@@ -32,9 +37,18 @@ app.post('/chat', async (req, res) => {
     });
 
     const data = await response.json();
-    res.json(data);
+
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+
+    return res.json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Backend error' });
+    console.error('CHAT ERROR:', error);
+
+    return res.status(500).json({
+      error: error.message,
+    });
   }
 });
 
