@@ -29,12 +29,52 @@ export default function HomeScreen() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const streamTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopStreamingRef = useRef(false);
+  const userPausedAutoScrollRef = useRef(false);
+  const userIsDraggingRef = useRef(false);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = (animated = true, delay = 150) => {
     setTimeout(() => {
-      listRef.current?.scrollToEnd({ animated: true });
-    }, 150);
+      listRef.current?.scrollToEnd({ animated });
+    }, delay);
   };
+
+  const getDistanceFromBottom = (event: any) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    return contentSize.height - (contentOffset.y + layoutMeasurement.height);
+  };
+
+  const handleMessagesScroll = (event: any) => {
+    // Do not re-enable auto-scroll while the user is actively dragging.
+    // This prevents the list from fighting the user's finger.
+    if (userIsDraggingRef.current) return;
+
+    const distanceFromBottom = getDistanceFromBottom(event);
+
+    // If the user is already near the bottom, auto-scroll can stay active.
+    if (distanceFromBottom < 35) {
+      userPausedAutoScrollRef.current = false;
+    }
+  };
+
+  const handleScrollBeginDrag = () => {
+    userIsDraggingRef.current = true;
+
+    // While FlexAI is typing, any manual drag means: pause auto-scroll.
+    if (isLoading) {
+      userPausedAutoScrollRef.current = true;
+    }
+  };
+
+  const handleScrollEndDrag = (event: any) => {
+    userIsDraggingRef.current = false;
+
+    // Auto-scroll resumes only if the user manually returns near the bottom.
+    if (getDistanceFromBottom(event) < 35) {
+      userPausedAutoScrollRef.current = false;
+    }
+  };
+
+  const shouldAutoScroll = () => !userPausedAutoScrollRef.current;
 
   const clearChat = () => {
     if (isLoading) return;
@@ -62,8 +102,8 @@ export default function HomeScreen() {
   const typeAiResponse = (aiId: string, fullText: string, signal: AbortSignal) => {
     return new Promise<void>((resolve) => {
       let index = 0;
-      const chunkSize = fullText.length > 900 ? 4 : 2;
-const speed = fullText.length > 900 ? 25 : 35;
+      const chunkSize = fullText.length > 900 ? 2 : 1;
+const speed = fullText.length > 900 ? 35 : 45;
 
       const step = () => {
         if (signal.aborted || stopStreamingRef.current) {
@@ -80,7 +120,9 @@ const speed = fullText.length > 900 ? 25 : 35;
           )
         );
 
-        scrollToBottom();
+        if (shouldAutoScroll()) {
+          scrollToBottom(false, 0);
+        }
 
         if (index < fullText.length) {
           streamTimeoutRef.current = setTimeout(step, speed);
@@ -101,6 +143,7 @@ const speed = fullText.length > 900 ? 25 : 35;
     setMessage('');
     setIsLoading(true);
     stopStreamingRef.current = false;
+    userPausedAutoScrollRef.current = false;
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -151,6 +194,7 @@ const speed = fullText.length > 900 ? 25 : 35;
 
       setIsLoading(false);
       abortControllerRef.current = null;
+      userPausedAutoScrollRef.current = false;
       scrollToBottom();
     } catch (error: any) {
       setMessages((prev) => prev.filter((msg) => msg.id !== 'typing'));
@@ -168,6 +212,7 @@ const speed = fullText.length > 900 ? 25 : 35;
 
       setIsLoading(false);
       abortControllerRef.current = null;
+      userPausedAutoScrollRef.current = false;
       scrollToBottom();
     }
   };
@@ -193,8 +238,21 @@ const speed = fullText.length > 900 ? 25 : 35;
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messagesContent}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={scrollToBottom}
-          onLayout={scrollToBottom}
+          onScroll={handleMessagesScroll}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleScrollEndDrag}
+          scrollEventThrottle={16}
+          onContentSizeChange={() => {
+            if (shouldAutoScroll()) {
+              scrollToBottom(false, 0);
+            }
+          }}
+          onLayout={() => {
+            if (!isLoading && shouldAutoScroll()) {
+              scrollToBottom();
+            }
+          }}
           renderItem={({ item }) => (
             <View
               style={[
