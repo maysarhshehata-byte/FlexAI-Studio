@@ -17,7 +17,7 @@ app.post('/chat', async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3-0324',
+        model: 'openai/gpt-3.5-turbo',
         messages: [
           {
             role: 'system',
