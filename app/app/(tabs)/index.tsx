@@ -13,6 +13,7 @@ type ChatMessage = {
 
 export default function HomeScreen() {
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '1', text: 'Welcome to FlexAI Studio 🚀', role: 'ai' },
   ]);
@@ -26,10 +27,11 @@ export default function HomeScreen() {
   };
 
   const sendMessage = async () => {
-    if (!message.trim()) return;
+    if (!message.trim() || isLoading) return;
 
     const userText = message;
     setMessage('');
+    setIsLoading(true);
 
     setMessages((prev) => [
       ...prev,
@@ -57,24 +59,31 @@ const clearChat = () => {
       const data = await response.json();
 
       const aiText =
-        data?.choices?.[0]?.message?.content ||
-        data?.error?.message ||
-        JSON.stringify(data);
+  data?.choices?.[0]?.message?.content ||
+  data?.error?.message ||
+  data?.error ||
+  'Something went wrong. Please try again.';
 
       setMessages((prev) => [
-        ...prev.filter((msg) => msg.id !== 'typing'),
-        { id: Date.now().toString() + '-ai', text: aiText, role: 'ai' },
-      ]);
+  ...prev.filter((msg) => msg.id !== 'typing'),
+  { id: Date.now().toString() + '-ai', text: aiText, role: 'ai' },
+]);
 
-      scrollToBottom();
+setIsLoading(false);
+scrollToBottom();
     } catch (error) {
-      setMessages((prev) => [
-        ...prev.filter((msg) => msg.id !== 'typing'),
-        { id: Date.now().toString() + '-error', text: 'Error connecting to backend.', role: 'ai' },
-      ]);
+  setMessages((prev) => [
+    ...prev.filter((msg) => msg.id !== 'typing'),
+    {
+      id: Date.now().toString() + '-error',
+      text: 'Connection issue. Please check your internet and try again.',
+      role: 'ai',
+    },
+  ]);
 
-      scrollToBottom();
-    }
+  setIsLoading(false);
+  scrollToBottom();
+}
   };
 const clearChat = () => {
   setMessages([
@@ -130,9 +139,15 @@ const clearChat = () => {
 
 />
 
-          <TouchableOpacity style={styles.button} onPress={sendMessage}>
-            <Text style={styles.buttonText}>Send</Text>
-          </TouchableOpacity>
+          <TouchableOpacity
+  style={[styles.button, isLoading && styles.buttonDisabled]}
+  onPress={sendMessage}
+  disabled={isLoading}
+>
+  <Text style={styles.buttonText}>
+    {isLoading ? '...' : 'Send'}
+  </Text>
+</TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -149,6 +164,10 @@ const styles = StyleSheet.create({
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'space-between',
+},
+
+buttonDisabled: {
+  opacity: 0.5,
 },
 
 header: {
