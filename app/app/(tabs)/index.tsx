@@ -1,8 +1,15 @@
 import React, { useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, TouchableOpacity,
-  FlatList, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+
 import { API_BASE_URL } from '@/config/api';
 
 type ChatMessage = {
@@ -19,11 +26,72 @@ export default function HomeScreen() {
   ]);
 
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const streamTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stopStreamingRef = useRef(false);
 
   const scrollToBottom = () => {
     setTimeout(() => {
       listRef.current?.scrollToEnd({ animated: true });
     }, 150);
+  };
+
+  const clearChat = () => {
+    if (isLoading) return;
+
+    setMessages([
+      { id: '1', text: 'Welcome to FlexAI Studio 🚀', role: 'ai' },
+    ]);
+  };
+
+  const stopResponse = () => {
+    stopStreamingRef.current = true;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+
+    if (streamTimeoutRef.current) {
+      clearTimeout(streamTimeoutRef.current);
+      streamTimeoutRef.current = null;
+    }
+
+    setMessages((prev) => prev.filter((msg) => msg.id !== 'typing'));
+    setIsLoading(false);
+    scrollToBottom();
+  };
+
+  const typeAiResponse = (aiId: string, fullText: string, signal: AbortSignal) => {
+    return new Promise<void>((resolve) => {
+      let index = 0;
+      const chunkSize = fullText.length > 900 ? 4 : 2;
+const speed = fullText.length > 900 ? 25 : 35;
+
+      const step = () => {
+        if (signal.aborted || stopStreamingRef.current) {
+          resolve();
+          return;
+        }
+
+        index = Math.min(index + chunkSize, fullText.length);
+        const visibleText = fullText.slice(0, index);
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiId ? { ...msg, text: visibleText } : msg
+          )
+        );
+
+        scrollToBottom();
+
+        if (index < fullText.length) {
+          streamTimeoutRef.current = setTimeout(step, speed);
+        } else {
+          streamTimeoutRef.current = null;
+          resolve();
+        }
+      };
+
+      step();
+    });
   };
 
   const sendMessage = async () => {
@@ -32,64 +100,78 @@ export default function HomeScreen() {
     const userText = message;
     setMessage('');
     setIsLoading(true);
+    stopStreamingRef.current = false;
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     setMessages((prev) => [
       ...prev,
       { id: Date.now().toString(), text: userText, role: 'user' },
-      { id: 'typing', text: 'AI is thinking...', role: 'ai' },
+      { id: 'typing', text: 'FlexAI is thinking...', role: 'ai' },
     ]);
 
     scrollToBottom();
-const clearChat = () => {
-  setMessages([
-    { id: '1', text: 'Welcome to FlexAI Studio 🚀', role: 'ai' },
-  ]);
-};
+
     try {
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           message: userText,
+          history: messages
+            .filter((msg) => msg.id !== 'typing')
+            .slice(-20)
+            .map((msg) => ({
+              role: msg.role === 'ai' ? 'assistant' : 'user',
+              content: msg.text,
+            })),
         }),
       });
 
       const data = await response.json();
 
       const aiText =
-  data?.choices?.[0]?.message?.content ||
-  data?.error?.message ||
-  data?.error ||
-  'Something went wrong. Please try again.';
+        data?.choices?.[0]?.message?.content ||
+        data?.error?.message ||
+        data?.error ||
+        'Something went wrong. Please try again.';
+
+      const aiId = Date.now().toString() + '-ai';
 
       setMessages((prev) => [
-  ...prev.filter((msg) => msg.id !== 'typing'),
-  { id: Date.now().toString() + '-ai', text: aiText, role: 'ai' },
-]);
+        ...prev.filter((msg) => msg.id !== 'typing'),
+        { id: aiId, text: '', role: 'ai' },
+      ]);
 
-setIsLoading(false);
-scrollToBottom();
-    } catch (error) {
-  setMessages((prev) => [
-    ...prev.filter((msg) => msg.id !== 'typing'),
-    {
-      id: Date.now().toString() + '-error',
-      text: 'Connection issue. Please check your internet and try again.',
-      role: 'ai',
-    },
-  ]);
+      await typeAiResponse(aiId, aiText, controller.signal);
 
-  setIsLoading(false);
-  scrollToBottom();
-}
+      setIsLoading(false);
+      abortControllerRef.current = null;
+      scrollToBottom();
+    } catch (error: any) {
+      setMessages((prev) => prev.filter((msg) => msg.id !== 'typing'));
+
+      if (error?.name !== 'AbortError') {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString() + '-error',
+            text: 'Connection issue. Please check your internet and try again.',
+            role: 'ai',
+          },
+        ]);
+      }
+
+      setIsLoading(false);
+      abortControllerRef.current = null;
+      scrollToBottom();
+    }
   };
-const clearChat = () => {
-  setMessages([
-    { id: '1', text: 'Welcome to FlexAI Studio 🚀', role: 'ai' },
-  ]);
-};
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -98,12 +180,12 @@ const clearChat = () => {
     >
       <View style={styles.container}>
         <View style={styles.headerRow}>
-  <Text style={styles.header}>FlexAI Chat</Text>
+          <Text style={styles.header}>FlexAI Chat</Text>
 
-  <TouchableOpacity style={styles.clearButton} onPress={clearChat}>
-    <Text style={styles.clearButtonText}>Clear</Text>
-  </TouchableOpacity>
-</View>
+          <TouchableOpacity style={styles.clearButton} onPress={clearChat}>
+            <Text style={styles.clearButtonText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
 
         <FlatList
           ref={listRef}
@@ -114,40 +196,34 @@ const clearChat = () => {
           onContentSizeChange={scrollToBottom}
           onLayout={scrollToBottom}
           renderItem={({ item }) => (
-            <View style={[styles.messageBubble, item.role === 'ai' ? styles.aiBubble : styles.userBubble]}>
+            <View
+              style={[
+                styles.messageBubble,
+                item.role === 'ai' ? styles.aiBubble : styles.userBubble,
+              ]}
+            >
               <Text style={styles.messageText}>{item.text}</Text>
             </View>
           )}
         />
 
         <View style={styles.inputContainer}>
-         <TextInput
-
-  value={message}
-
-  onChangeText={setMessage}
-
-  placeholder="Ask anything..."
-
-  placeholderTextColor="#666"
-
-  style={styles.input}
-
-  multiline={true}
-
-  textAlignVertical="center"
-
-/>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Ask anything..."
+            placeholderTextColor="#666"
+            style={styles.input}
+            multiline={true}
+            textAlignVertical="center"
+          />
 
           <TouchableOpacity
-  style={[styles.button, isLoading && styles.buttonDisabled]}
-  onPress={sendMessage}
-  disabled={isLoading}
->
-  <Text style={styles.buttonText}>
-    {isLoading ? '...' : 'Send'}
-  </Text>
-</TouchableOpacity>
+            style={[styles.button, isLoading && styles.stopButton]}
+            onPress={isLoading ? stopResponse : sendMessage}
+          >
+            <Text style={styles.buttonText}>{isLoading ? '■' : 'Send'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -158,38 +234,34 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050505' },
 
   headerRow: {
-  marginTop: 70,
-  marginHorizontal: 20,
-  marginBottom: 10,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-},
+    marginTop: 70,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 
-buttonDisabled: {
-  opacity: 0.5,
-},
+  header: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
 
-header: {
-  color: 'white',
-  fontSize: 28,
-  fontWeight: 'bold',
-},
+  clearButton: {
+    backgroundColor: '#16122B',
+    borderColor: '#8A5CFF',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+  },
 
-clearButton: {
-  backgroundColor: '#16122B',
-  borderColor: '#8A5CFF',
-  borderWidth: 1,
-  paddingHorizontal: 14,
-  paddingVertical: 8,
-  borderRadius: 14,
-},
-
-clearButtonText: {
-  color: '#C7B8FF',
-  fontWeight: '700',
-  fontSize: 13,
-},
+  clearButtonText: {
+    color: '#C7B8FF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
 
   messagesContent: {
     padding: 20,
@@ -232,7 +304,13 @@ clearButtonText: {
     backgroundColor: '#8A5CFF',
     paddingHorizontal: 14,
     justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 16,
+    minWidth: 58,
+  },
+
+  stopButton: {
+    backgroundColor: '#FF4D4D',
   },
 
   buttonText: { color: 'white', fontWeight: 'bold' },

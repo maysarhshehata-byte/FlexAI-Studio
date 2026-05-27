@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
 
 app.post('/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, history = [] } = req.body;
 
     if (!process.env.OPENROUTER_API_KEY) {
       return res.status(500).json({
@@ -34,9 +34,9 @@ app.post('/chat', async (req, res) => {
       body: JSON.stringify({
         model: 'openai/gpt-4o-mini',
         messages: [
-          {
-  role: 'system',
-  content: `
+  {
+    role: 'system',
+    content: `
 You are FlexAI, a sharp bilingual AI assistant.
 
 Core behavior:
@@ -51,13 +51,14 @@ Core behavior:
 - Do not act like a fictional character. Act like a premium assistant.
 - For technical/product-building topics, be direct and step-by-step.
 - For casual Arabic, sound like a smart Egyptian assistant, not formal Arabic.
-  `,
-},
-          {
-            role: 'user',
-            content: message || 'Hello',
-          },
-        ],
+    `,
+  },
+  ...history,
+  {
+    role: 'user',
+    content: message || 'Hello',
+  },
+],
       }),
     });
 
