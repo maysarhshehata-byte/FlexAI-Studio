@@ -10,7 +10,9 @@ import {
   Platform,
 } from 'react-native';
 
+import * as Clipboard from 'expo-clipboard';
 import { API_BASE_URL } from '@/config/api';
+import { Ionicons } from '@expo/vector-icons';
 
 type ChatMessage = {
   id: string;
@@ -21,6 +23,8 @@ type ChatMessage = {
 export default function HomeScreen() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: '1', text: 'Welcome to FlexAI Studio 🚀', role: 'ai' },
   ]);
@@ -136,10 +140,12 @@ const speed = fullText.length > 900 ? 40 : 50;
     });
   };
 
-  const sendMessage = async () => {
-    if (!message.trim() || isLoading) return;
+  const sendMessage = async (overrideText?: string) => {
+  const textToSend = overrideText || message;
 
-    const userText = message;
+  if (!textToSend.trim() || isLoading) return;
+
+  const userText = textToSend;
     setMessage('');
     setIsLoading(true);
     stopStreamingRef.current = false;
@@ -217,6 +223,46 @@ const speed = fullText.length > 900 ? 40 : 50;
     }
   };
 
+  const copyMessage = async (id: string, text: string) => {
+  await Clipboard.setStringAsync(text);
+
+  setCopiedMessageId(id);
+
+  setTimeout(() => {
+    setCopiedMessageId(null);
+  }, 1500);
+};
+
+const editMessage = (text: string) => {
+  if (isLoading) return;
+  setMessage(text);
+};
+
+const regenerateLastResponse = () => {
+  if (isLoading) return;
+
+  const lastAiIndex = [...messages]
+    .map((msg, index) => ({ msg, index }))
+    .reverse()
+    .find(({ msg }) => msg.role === 'ai' && msg.id !== 'typing')?.index;
+
+  if (lastAiIndex === undefined) return;
+
+  const userMessageBeforeAi = [...messages]
+    .slice(0, lastAiIndex)
+    .reverse()
+    .find((msg) => msg.role === 'user');
+
+  if (!userMessageBeforeAi) return;
+
+  setMessages((prev) => prev.slice(0, lastAiIndex));
+  setMessage(userMessageBeforeAi.text);
+
+  setTimeout(() => {
+    sendMessage(userMessageBeforeAi.text);
+  }, 100);
+};
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -261,15 +307,53 @@ const speed = fullText.length > 900 ? 40 : 50;
     ]}
   >
     <View
-      style={[
-        styles.messageBubble,
-        item.role === 'ai' ? styles.aiBubble : styles.userBubble,
-      ]}
-    >
-      <Text style={styles.messageText}>{item.text}</Text>
-    </View>
+  style={[
+    styles.messageBubble,
+    item.role === 'ai' ? styles.aiBubble : styles.userBubble,
+  ]}
+>
+  <TextInput
+    value={item.text}
+    editable={false}
+    multiline
+    scrollEnabled={false}
+    selectionColor="#8A5CFF"
+    style={styles.messageText}
+  />
+
+</View>
+
+{item.role === 'ai' && (
+      <View style={styles.aiActionRow}>
+        {item.id ===
+          messages.filter((msg) => msg.role === 'ai' && msg.id !== 'typing').at(-1)?.id && (
+          <TouchableOpacity onPress={regenerateLastResponse}>
+            <Ionicons name="refresh" size={20} color="#BFAEFF" />
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity onPress={() => copyMessage(item.id, item.text)}>
+          <Ionicons
+            name={copiedMessageId === item.id ? 'checkmark-done' : 'copy-outline'}
+            size={19}
+            color="#BFAEFF"
+          />
+        </TouchableOpacity>
+      </View>
+    )}
+
+    {item.role === 'user' &&
+      item.id === messages.filter((msg) => msg.role === 'user').at(-1)?.id && (
+        <TouchableOpacity
+          style={styles.userActionButton}
+          onPress={() => editMessage(item.text)}
+        >
+          <Ionicons name="pencil" size={18} color="#BFAEFF" />
+        </TouchableOpacity>
+      )}
   </View>
 )}
+
         />
 
         <View style={styles.inputContainer}>
@@ -285,7 +369,7 @@ const speed = fullText.length > 900 ? 40 : 50;
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.stopButton]}
-            onPress={isLoading ? stopResponse : sendMessage}
+            onPress={isLoading ? stopResponse : () => sendMessage()}
           >
             <Text style={styles.buttonText}>{isLoading ? '■' : 'Send'}</Text>
           </TouchableOpacity>
@@ -309,7 +393,7 @@ const styles = StyleSheet.create({
 
   messageRow: {
   width: '100%',
-  marginBottom: 12,
+  marginBottom:28,
   paddingHorizontal: 0,
 },
 
@@ -346,22 +430,45 @@ userRow: {
 
   messagesContent: {
     padding: 20,
-    paddingBottom: 24,
+    paddingBottom: 28,
   },
 
   messageBubble: {
   maxWidth: '82%',
-  paddingVertical: 15,
+  paddingVertical: 14,
   paddingHorizontal: 18,
   borderRadius: 20,
   borderWidth: 1,
+  justifyContent: 'center',
 },
 
   aiBubble: { backgroundColor: '#16122B', borderColor: '#6F4DCC' },
 
   userBubble: { backgroundColor: '#121212', borderColor: '#1F1F1F' },
 
-  messageText: { color: 'white', fontSize: 16, lineHeight: 25, textAlign: 'left', },
+  messageText: {
+  color: 'white',
+  fontSize: 16,
+  lineHeight: 24,
+  padding: 0,
+  margin: 0,
+  textAlignVertical: 'center',
+},
+
+  messageActions: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+  gap: 16,
+  marginTop: 12,
+},
+
+userActionButton: {
+  marginTop: 5,
+  marginBottom: 2,
+  alignSelf: 'flex-end',
+  paddingRight: 18,
+},
 
   inputContainer: {
     flexDirection: 'row',
@@ -397,4 +504,16 @@ userRow: {
   },
 
   buttonText: { color: 'white', fontWeight: 'bold' },
+  
+aiActionRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+  marginTop: 6,
+  marginLeft: 22,
+},
+  
+
 });
+
+
