@@ -103,7 +103,7 @@ export default function HomeScreen() {
     return new Promise<void>((resolve) => {
       let index = 0;
       const chunkSize = fullText.length > 900 ? 2 : 1;
-const speed = fullText.length > 900 ? 35 : 45;
+const speed = fullText.length > 900 ? 40 : 50;
 
       const step = () => {
         if (signal.aborted || stopStreamingRef.current) {
@@ -254,15 +254,22 @@ const speed = fullText.length > 900 ? 35 : 45;
             }
           }}
           renderItem={({ item }) => (
-            <View
-              style={[
-                styles.messageBubble,
-                item.role === 'ai' ? styles.aiBubble : styles.userBubble,
-              ]}
-            >
-              <Text style={styles.messageText}>{item.text}</Text>
-            </View>
-          )}
+  <View
+    style={[
+      styles.messageRow,
+      item.role === 'user' ? styles.userRow : styles.aiRow,
+    ]}
+  >
+    <View
+      style={[
+        styles.messageBubble,
+        item.role === 'ai' ? styles.aiBubble : styles.userBubble,
+      ]}
+    >
+      <Text style={styles.messageText}>{item.text}</Text>
+    </View>
+  </View>
+)}
         />
 
         <View style={styles.inputContainer}>
@@ -300,6 +307,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
+  messageRow: {
+  width: '100%',
+  marginBottom: 12,
+  paddingHorizontal: 0,
+},
+
+aiRow: {
+  alignItems: 'flex-start',
+  paddingRight: 45,
+},
+
+userRow: {
+  alignItems: 'flex-end',
+  paddingLeft: 45,
+},
+
   header: {
     color: 'white',
     fontSize: 28,
@@ -308,7 +331,7 @@ const styles = StyleSheet.create({
 
   clearButton: {
     backgroundColor: '#16122B',
-    borderColor: '#8A5CFF',
+    borderColor: '#6F4DCC',
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -327,21 +350,23 @@ const styles = StyleSheet.create({
   },
 
   messageBubble: {
-    padding: 16,
-    borderRadius: 18,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
+  maxWidth: '82%',
+  paddingVertical: 15,
+  paddingHorizontal: 18,
+  borderRadius: 20,
+  borderWidth: 1,
+},
 
-  aiBubble: { backgroundColor: '#16122B', borderColor: '#8A5CFF' },
+  aiBubble: { backgroundColor: '#16122B', borderColor: '#6F4DCC' },
 
   userBubble: { backgroundColor: '#121212', borderColor: '#1F1F1F' },
 
-  messageText: { color: 'white', fontSize: 16, lineHeight: 23 },
+  messageText: { color: 'white', fontSize: 16, lineHeight: 25, textAlign: 'left', },
 
   inputContainer: {
     flexDirection: 'row',
     padding: 15,
+    paddingBottom: 12,
     borderTopWidth: 1,
     borderColor: '#1A1A1A',
     backgroundColor: '#0B0B0B',
@@ -359,7 +384,7 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    backgroundColor: '#8A5CFF',
+    backgroundColor: '#7B5CFF',
     paddingHorizontal: 14,
     justifyContent: 'center',
     alignItems: 'center',
