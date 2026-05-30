@@ -609,63 +609,77 @@ const deleteSession = async (sessionId: string) => {
     >
       <View style={styles.container}>
         <View style={styles.headerRow}>
-          <Text style={styles.header}>FlexAI Chat</Text>
-
-          <View style={styles.headerActions}>
-  <TouchableOpacity
-    style={styles.headerButton}
-    onPress={() => {
-  Keyboard.dismiss();
-  setShowHistory((prev) => !prev);
-}}
-  >
-    <Text style={styles.headerButtonText}>History</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity style={styles.headerButton} onPress={startNewChat}>
-    <Text style={styles.headerButtonText}>New</Text>
-  </TouchableOpacity>
-
-  <TouchableOpacity style={styles.headerButton} onPress={clearChat}>
-    <Text style={styles.headerButtonText}>Clear</Text>
-  </TouchableOpacity>
-</View>
-        </View>
-
-{showHistory && (
-  <View style={styles.historyPanel}>
-    {sessions.length === 0 ? (
-      <Text style={styles.emptyHistoryText}>No saved chats yet</Text>
-    ) : (
-      sessions.map((session) => (
-  <View key={session.id} style={styles.historyItem}>
+  <View style={styles.headerLeft}>
     <TouchableOpacity
-      style={styles.historyInfo}
-      onPress={() => openSession(session)}
+      style={styles.menuButton}
+      onPress={() => {
+        Keyboard.dismiss();
+        setShowHistory((prev) => !prev);
+      }}
     >
-      <Text style={styles.historyTitle} numberOfLines={1}>
-        {session.title}
-      </Text>
-
-      <Text style={styles.historyDate}>
-        {new Date(session.updatedAt).toLocaleString([], {
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-        })}
-      </Text>
+      <Ionicons name="reader-outline" size={22} color="#C7B8FF" />
     </TouchableOpacity>
 
-    <TouchableOpacity
-      style={styles.historyDeleteButton}
-      onPress={() => deleteSession(session.id)}
-    >
-      <Ionicons name="trash-outline" size={17} color="#8F7ACC" />
+    <Text style={styles.header}>FlexAI Chat</Text>
+  </View>
+
+  <View style={styles.headerActions}>
+    <TouchableOpacity style={styles.headerIconButton} onPress={startNewChat}>
+      <Ionicons name="create-outline" size={18} color="#C7B8FF" />
     </TouchableOpacity>
   </View>
-))
-    )}
+</View>
+
+{showHistory && (
+  <View style={styles.sideMenuOverlay}>
+    <TouchableOpacity
+      style={styles.sideMenuBackdrop}
+      activeOpacity={1}
+      onPress={() => setShowHistory(false)}
+    />
+
+    <View style={styles.sideMenu}>
+      <View style={styles.sideMenuHeader}>
+        <Text style={styles.sideMenuTitle}>Chats</Text>
+
+        <TouchableOpacity onPress={() => setShowHistory(false)}>
+          <Ionicons name="close" size={22} color="#C7B8FF" />
+        </TouchableOpacity>
+      </View>
+
+      {sessions.length === 0 ? (
+        <Text style={styles.emptyHistoryText}>No saved chats yet</Text>
+      ) : (
+        sessions.map((session) => (
+          <View key={session.id} style={styles.historyItem}>
+            <TouchableOpacity
+              style={styles.historyInfo}
+              onPress={() => openSession(session)}
+            >
+              <Text style={styles.historyTitle} numberOfLines={1}>
+                {session.title}
+              </Text>
+
+              <Text style={styles.historyDate}>
+                {new Date(session.updatedAt).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.historyDeleteButton}
+              onPress={() => deleteSession(session.id)}
+            >
+              <Ionicons name="trash-outline" size={17} color="#8F7ACC" />
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+    </View>
   </View>
 )}
 
@@ -777,16 +791,11 @@ const deleteSession = async (sessionId: string) => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#050505' },
-
-  headerRow: {
-    marginTop: 70,
-    marginHorizontal: 20,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+  container: {
+  flex: 1,
+  backgroundColor: '#050505',
+  paddingTop: Platform.OS === 'ios' ? 58 : 32,
+},
 
   messageRow: {
   width: '100%',
@@ -805,10 +814,10 @@ userRow: {
 },
 
   header: {
-    color: 'white',
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
+  color: 'white',
+  fontSize: 26,
+  fontWeight: 'bold',
+},
 
   headerActions: {
   flexDirection: 'row',
@@ -989,5 +998,92 @@ historyDate: {
   fontSize: 11,
   marginTop: 4,
   },
+
+headerIconButton: {
+  width: 38,
+  height: 38,
+  borderRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#151515',
+  borderWidth: 1,
+  borderColor: '#6F4DCC',
+},
+
+headerRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingHorizontal: 20,
+  marginBottom: 22,
+},
+
+headerLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 14,
+},
+
+menuButton: {
+  width: 36,
+  height: 36,
+  borderRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: '#151515',
+  borderWidth: 1,
+  borderColor: '#2A2A2A',
+},
+
+sideMenuOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 50,
+  flexDirection: 'row',
+},
+
+sideMenuBackdrop: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.35)',
+},
+
+sideMenu: {
+  width: '72%',
+  maxWidth: 311,
+  height: '100%',
+  backgroundColor: '#07070A',
+  borderRightWidth: 1,
+  borderRightColor: '#2E2255',
+  paddingTop: 62,
+  paddingHorizontal: 16,
+  paddingBottom: 20,
+},
+
+sideMenuHeader: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 16,
+},
+
+sideMenuTitle: {
+  color: 'white',
+  fontSize: 22,
+  fontWeight: '800',
+},
+
+
+
 });
+
+
+
+
 
