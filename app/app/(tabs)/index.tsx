@@ -363,13 +363,33 @@ const speed = fullText.length > 900 ? 40 : 50;
         }),
       });
 
-      const data = await response.json();
+      const rawText = await response.text();
 
-      const aiText =
-        data?.choices?.[0]?.message?.content ||
-        data?.error?.message ||
-        data?.error ||
-        'Something went wrong. Please try again.';
+let data: any = {};
+
+try {
+  data = JSON.parse(rawText);
+} catch {
+  data = {};
+}
+
+if (!response.ok) {
+  throw new Error(
+    data?.error?.message ||
+    data?.error ||
+    rawText ||
+    `Request failed with status ${response.status}`
+  );
+}
+
+const aiText =
+  data?.choices?.[0]?.message?.content ||
+  data?.reply ||
+  data?.message ||
+  data?.error?.message ||
+  data?.error ||
+  rawText ||
+  'Something went wrong. Please try again.';
 
       const aiId = Date.now().toString() + '-ai';
 
@@ -390,6 +410,7 @@ const speed = fullText.length > 900 ? 40 : 50;
       userPausedAutoScrollRef.current = false;
       scrollToBottom();
     } catch (error: any) {
+      console.log('SEND MESSAGE ERROR:', error?.message || error);
       setMessages((prev) => prev.filter((msg) => msg.id !== 'typing'));
 
       if (error?.name !== 'AbortError') {
