@@ -145,7 +145,6 @@ export default function HomeScreen() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
@@ -168,6 +167,8 @@ const touchStartRef = useRef({
 
 const openSession = async (session: ChatSession) => {
   if (isLoading) return;
+
+  Keyboard.dismiss();
 
   setCurrentSessionId(session.id);
   setMessages(session.messages);
@@ -534,16 +535,6 @@ useEffect(() => {
 
     if (!hasUserMessage) return;
 
-    const now = new Date().toISOString();
-
-    const sessionToSave: ChatSession = {
-      id: currentSessionId,
-      title: getChatTitle(realMessages),
-      messages: realMessages,
-      createdAt: realMessages[0]?.createdAt || now,
-      updatedAt: now,
-    };
-
     const storedSessionsRaw = await AsyncStorage.getItem(
       'flexai_chat_sessions'
     );
@@ -552,6 +543,38 @@ useEffect(() => {
       ? JSON.parse(storedSessionsRaw)
       : [];
 
+    const existingSession = storedSessions.find(
+      (session) => session.id === currentSessionId
+    );
+
+    const currentMessagesSignature = JSON.stringify(realMessages);
+    const storedMessagesSignature = JSON.stringify(
+      existingSession?.messages || []
+    );
+
+    const messagesDidNotChange =
+  existingSession && currentMessagesSignature === storedMessagesSignature;
+
+if (messagesDidNotChange) {
+  const sortedSessions = [...storedSessions].sort(
+    (a, b) =>
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+
+  setSessions(sortedSessions);
+  return;
+}
+
+    const now = new Date().toISOString();
+
+    const sessionToSave: ChatSession = {
+      id: currentSessionId,
+      title: getChatTitle(realMessages),
+      messages: realMessages,
+      createdAt: existingSession?.createdAt || realMessages[0]?.createdAt || now,
+      updatedAt: now,
+    };
+
     const updatedSessions = [
       sessionToSave,
       ...storedSessions.filter(
@@ -559,11 +582,16 @@ useEffect(() => {
       ),
     ];
 
-    setSessions(updatedSessions);
+    const sortedSessions = updatedSessions.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+
+    setSessions(sortedSessions);
 
     await AsyncStorage.setItem(
       'flexai_chat_sessions',
-      JSON.stringify(updatedSessions)
+      JSON.stringify(sortedSessions)
     );
   };
 

@@ -3,6 +3,7 @@
     "name": "FlexAI Studio",
     "slug": "flexai-studio",
     "version": "1.0.0",
+    "runtimeVersion": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "flexai-studio",
@@ -55,6 +56,10 @@
       "eas": {
         "projectId": "9ebad423-e399-4a9a-b96d-48006606b868"
       }
+    },
+    
+    "updates": {
+      "url": "https://u.expo.dev/9ebad423-e399-4a9a-b96d-48006606b868"
     }
   }
 }
